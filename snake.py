@@ -14,34 +14,59 @@ snake.shape("square")
 snake.color("green")
 snake.penup()
 snake.goto(0, 0)
-snake.direction = "stop"
+snake.direction = "up"
 
 # Food - add with function object
+halfX = snk_lib.SCR_WIDTH/2
+halfY = snk_lib.SCR_HEIGHT/2
+
 food = turtle.Turtle()
 food.shape("circle")
 food.color("red")
 food.penup()
-food.goto(100,0)
+food.goto(100, 0)
 
 # Snake body
 snkBody = []
 
+# Block consecutive oposite direction change
+blocking = [False, False, False, False]
 
-## FUNCTIONS ##
-
-# Direction functions
+# Direction function
 def mUp():
-    snake.direction = "up"
+    if not blocking[0]:
+        snake.direction = "up"
+
+    blocking[1] = True
+    blocking[2] = blocking[3] = False
 
 def mDown():
-    snake.direction = "down"
+    if not blocking[1]:
+        snake.direction = "down"
+
+    blocking[0] = True
+    blocking[2] = blocking[3] = False
 
 def mRight():
-    snake.direction = "right"
+    if not blocking[2]:
+        snake.direction = "right"
 
+    blocking[3] = True
+    blocking[0] = blocking[1] = False
+    
 def mLeft():
-    snake.direction = "left"
+    if not blocking[3]:
+        snake.direction = "left"
 
+    blocking[2] = True
+    blocking[0] = blocking[1] = False
+
+# Keyboard
+scr.listen()
+scr.onkeypress(mUp, "Up")
+scr.onkeypress(mDown, "Down")
+scr.onkeypress(mRight, "Right")
+scr.onkeypress(mLeft, "Left")
 
 # Movement function
 def movement():
@@ -65,28 +90,8 @@ def movement():
         x = snake.xcor()
         snake.setx(x - 20)
 
-# Colision function
-def colision():
-
-    # Colision made with food
-    if snake.distance(food) < 20:
-        halfX = snk_lib.SCR_WIDTH/2
-        halfY = snk_lib.SCR_HEIGHT/2
-
-        # Food spawn inside the screen (with 40 of marge)
-        x = random.randint(-halfX+40, halfX-40)
-        y = random.randint(-halfY+40, halfY-40)
-        food.goto(x, y)
-
-        # Each time snake eats, its size will increase
-        newBody = turtle.Turtle()
-        newBody.speed(0)
-        newBody.shape("square")
-        newBody.color("grey")
-        newBody.penup()
-
-        snkBody.append(newBody)
-
+# Generate snake body function
+def genBody():
     # Snake body add and movement animation
     totalBody = len(snkBody)
 
@@ -100,28 +105,75 @@ def colision():
     # Set the first body part just after the 'head'
     if totalBody > 0:
         snkBody[0].goto(snake.xcor(), snake.ycor()) 
-        
-    # Colision made with wall or itself
-    # gameover
 
+    
+# Food eating function
+def foodEating():
 
-# Keyboard
-scr.listen()
-scr.onkeypress(mUp, "Up")
-scr.onkeypress(mDown, "Down")
-scr.onkeypress(mRight, "Right")
-scr.onkeypress(mLeft, "Left")
+    # Collision made with food
+    if snake.distance(food) < 20:
+        # Food spawn inside the screen (with 40 of marge)
+        xFood = random.randint(-halfX+40, halfX-40)
+        yFood = random.randint(-halfY+40, halfY-40)
+
+        food.goto(xFood, yFood)
+
+        # Each time snake eats, its size will increase
+        newBody = turtle.Turtle()
+        newBody.speed(0)
+        newBody.shape("square")
+        newBody.color("grey")
+        newBody.penup()
+
+        snkBody.append(newBody)
+
+        # Increase speed
+        snk_lib.SLEEP_T -= 0.002
+
+    # Generate snake body
+    genBody()
+
+# Collision function
+def collision():
+    # Collision made with wall
+    xWall = halfX-40
+    yWall = halfY-40
+
+    if (snake.xcor() > xWall) or (snake.xcor() < -xWall) or (snake.ycor() > yWall) or (snake.ycor() < -yWall):
+        gameOver()
+
+    # Collision with any part of its tail
+    for i in snkBody:
+        if i.distance(snake) < 20:
+            gameOver()
+    
+# Game over function
+def gameOver():
+        time.sleep(1)
+        snake.goto(0, 0)
+        snake.direction = "stop"
+
+        # Clear the body
+        for i in snkBody:
+            i.goto(snk_lib.SCR_WIDTH, snk_lib.SCR_HEIGHT)
+        snkBody.clear()
+
+        # Reset speed
+        snk_lib.SLEEP_T = 0.1
 
 # Main loop
 while True:
     # Update screen
     scr.update()
 
-    # Check if there's a colision
-    colision()
+    # Execute everytime snake eats
+    foodEating()
 
     # Keyboard movement detection
     movement()
+
+    # If there's a collision with wall or itself, calls game over
+    collision()
 
     # Delay to avoid overspeed
     time.sleep(snk_lib.SLEEP_T)
